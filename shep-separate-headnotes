@@ -1,0 +1,58 @@
+#!/usr/bin/awk -f
+#
+# shep-separate-headnotes: separate out combined headnotes in a single
+# record into individual records, skipping citations with no
+# headnotes.
+#
+# by Eric Nystrom, http://ericnystrom.org
+#   started: June 08, 2016
+#   version: Sept. 30, 2016
+#   license: MIT License
+#
+# Given input from shep2csv (output is 9 fields) OR 10-field output
+# from shep2csv --> shep-group, takes headnote information in column
+# 9, splits it, and puts out one citation line per individual
+# headnote.  Note-- keeps fields in same position.  Detection of 9 vs
+# 10 line input isn't especially elegant but should work.
+#
+# Can pipe input here, or give it a file.  Remember it needs a header
+# by default. Specify "header=off" on command line if no header present.
+#
+# This SKIPS cites with no Headnote ref, and they do not appear in the
+# final output.
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+    header = "on"
+}
+
+NR == 1 {
+    if (header == "on") {	
+	if (NF == 9) {
+		# First line of file, i.e. a header, add column and print the
+		# rest, omitting $9 which is old headnote field    
+		print $1, $2, $3, $4, $5, $6, $7, $8, "headnote"
+		next
+	} else if (NF == 10) {
+		print $1, $2, $3, $4, $5, $6, $7, $8, "headnote", $10
+		next
+	}	
+    }
+}
+
+# When $9 is empty, there is nothing in the array after the split, so
+# the "for" does not do a loop, thus resulting in no output for cites
+# without a headnote reference.  When there is only one headnote in
+# $9, the "headnotes" array ends up containing all of $9, so that gets
+# printed in the for-loop.
+{
+    split($9, headnotes, ",")
+    for (i in headnotes) {
+	if (NF == 9) {
+		print $1, $2, $3, $4, $5, $6, $7, $8, headnotes[i]
+	} else if (NF == 10) {
+		print $1, $2, $3, $4, $5, $6, $7, $8, headnotes[i], $10	
+	}	
+    }
+}

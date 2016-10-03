@@ -1,0 +1,43 @@
+#!/usr/bin/awk -f
+#
+# shep-separate-citetypes: separate out combined citation-types into individual records
+#
+# by Eric Nystrom, http://ericnystrom.org
+#   version: Sept. 30, 2016
+#   license: MIT License
+#
+# Given input from shep2csv (output is 9 fields) OR 10-field output
+# from shep2csv --> shep-group, takes "howused" information in column
+# 3, splits it, and puts out one citation line per individual
+# cite-usage.  Note-- keeps fields in same position.  Detection of 9
+# vs 10 line input isn't especially elegant but should work.
+#
+# Can pipe input here, or give it a file.  Remember it needs a header
+# by default. Specify "header=off" on command line if no header present.
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+    header = "on"
+}
+
+NR == 1 {
+    if (header == "on") {	
+	print
+	next
+    }
+}
+
+# Print a line for each type (DissentCite, Cite, etc) in the "howused" field
+# $3.  Tries to do the right thing whether there are 9 or 10 fields in
+# output.
+{
+    split($3, howused, ",")
+    for (i in howused) {
+	if (NF == 9) {
+		print $1, $2, howused[i], $4, $5, $6, $7, $8, $9
+	} else if (NF == 10) {
+		print $1, $2, howused[i], $4, $5, $6, $7, $8, $9, $10	
+	}	
+    }
+}

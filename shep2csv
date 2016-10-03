@@ -1,0 +1,283 @@
+#!/usr/bin/perl
+# 
+# shep2csv: Parse citations from HTML-exported results from LexisNexis "Shepardize."
+#
+# by Eric Nystrom, http://ericnystrom.org
+#   started: March 13, 2016
+#   version: October 03, 2016
+#
+#   license: MIT License
+
+use strict;
+use warnings;
+use HTML::Strip;
+use Text::Unidecode;
+use Text::Trim qw(trim);
+
+my $hs = HTML::Strip->new();
+
+# Read in .html file from STDIN or file on command line, processes
+# file one line at a time.
+
+# Delimiter for output (I suggest Pipe or TAB, many cases have commas)
+my $delim = "\t";
+
+# Set up other variables
+my $case = 0;
+my $head = 0;
+my $citing = 0;
+my $type;
+my $jurisd = "";
+my $shepnumber = "";
+my $casetitle = "";
+my $casecite = "";
+my $caseyear = "";
+my @citetypes;
+my @jurisdictions;
+my @shepnum;
+my @howused;
+my @title;
+my @ref;
+my @yearstring;
+my @years;
+my @headnotes;
+my $count = 0;
+
+while (<>) {
+    # Grab the line and remove HTML tags, strip Unicode weirdness
+    chomp;
+    my $raw_html = $_;
+    my $clean_text = $hs->parse( $raw_html );
+    $clean_text =~ s/([^[:ascii:]]+)/unidecode($1)/ge;
+
+    # First step: process first few lines of file to get general
+    # information about case being Shepardized; do this while the
+    # header is not yet fully formed.
+    if ( !$head && $clean_text =~ /^Copyright/ ) {
+	# Next non-blank line should be the case, set $case to warn us to look
+	$case = "nearby";
+
+    } elsif ( !$head && $case eq "nearby" && $clean_text !~ /^\s*$/ ) {
+	# This line should be the case being Shepardized, grab info
+	# and save for use at the end
+	$case = $clean_text;
+	# Break it down to extract case name, primary citation, and year
+	my @casecites = split(/,/, $case);
+	# Remove leading/trailing whitespace from case title and first reference
+	$casetitle = trim($casecites[0]);
+	$casecite = trim($casecites[1]);
+	($caseyear = $case) =~ s/.*(\([A-Za-z.,0-9\s]*[0-9]+\)).*/$1/;
+
+	# Header now complete, set $head = 1
+	$head = 1;
+    }
+
+    # Now get the Jurisdiction from the subheading
+    if ( $head && $clean_text =~ /^\s{3}([0-9]{0,2}[A-Z]+[A-Z.\s'-]+)/ ) {
+	# if line starts with a heading (zero, one, or two numbers
+	# (i.e. 1ST, 11TH), with capital letters, spaces, or periods, avoid
+	# parentheses), see what kind it is and save it.  Need single
+	# quote for HAWAI'I
+	$jurisd = $1;
+
+	# Now, adjust some special cases, and if we're through processing
+	# actual judicial citations, reset $head so that we skip
+	# processing the rest of the file.
+
+	# First, if it's false positive garbage from the beginning of
+	# the file, zero out the $jurisd variable
+	if ( $jurisd =~ /SHEPARD/ ) {
+	    $jurisd = "";
+
+	} elsif ( $jurisd =~ /PRIOR HISTORY/ ) {
+	    $jurisd = "";
+	    
+	} elsif ( $jurisd =~ /CITING DECISIONS/ ) {
+	    # The correct jurisdiction for the first citations ends up
+	    # on the CITING DECISIONS line, so if we have this line, we
+	    # need to go back and extract the last part from the
+	    # $clean_text line
+	    # Example: CITING DECISIONS  ( 703 citing decisions ) U.S. SUPREME COURT
+	    my @citing = split(/\) /, $clean_text);
+	    $jurisd = $citing[1];
+
+	} elsif ( $jurisd =~ /OTHER CITATIONS/
+		  || $jurisd =~ /ANNOTATED STATUTES/
+		  || $jurisd =~ /LAW REVIEWS AND PERIODICALS/
+		  || $jurisd =~ /ANNOTATIONS/
+		  || $jurisd =~ /TREATISE CITATIONS/
+		  || $jurisd =~ /SECONDARY SOURCES/
+		  || $jurisd =~ /BRIEFS/
+		  || $jurisd =~ /MOTIONS/
+		  || $jurisd =~ /PLEADINGS/ ) {
+	    # At this point, everything from the headings tested here
+	    # to the end of the file cannot fit effectively into CSV
+	    # and are outside the scope of this program, so once we
+	    # find one of these headings, set $head back to zero and
+	    # it should skip processing everything else below.
+	    $head = 0;
+
+	    ## Could, at this point, set up special cases for handling
+	    ## information under certain kinds of headings.  These would
+	    ## include: OTHER CITATIONS, ANNOTATED STATUTES, LAW REVIEWS AND
+	    ## PERIODICALS, ANNOTATIONS, TREATISE CITATIONS, SECONDARY
+	    ## SOURCES, BRIEFS, MOTIONS, PLEADINGS.  Special cases such as
+	    ## these might require specialized parsing and output formatting,
+	    ## and would need to adjust the $head reset above.
+	}
+    } 
+
+    # Next find the number of the citation, which appears on a
+    # line all by itself, with leading space, and with a period after
+    # it.  Note that "shepnum" #1 (or more) typically represents the
+    # "Prior History" section, so output will not typically begin with
+    # 1.
+    if ( $head && $clean_text =~ /^\s?([0-9]+)\.$/ ) {
+	$shepnumber = "$1";
+    }
+    
+    # Now find a line indicating a type of citation, which comes
+    # before the actual reference to the citing case.
+    if ( $head && $jurisd && $clean_text =~ /\s+(\w+[,\s\w]*)\s+(by:|at:)\s*$/ ) {
+	# If the line is one of the "citing" lines, toggle citing
+	# status to on, and capture the type(s) of cite.  I'm looking
+	# for those that start a section on the next line, not those
+	# sub-cites on a list of multiple cites to the same case.
+	$citing = 1;
+
+	# Sometimes there are multiple cite types for any single case. 	
+	# If the goal is to generate an output line for each of the
+	# different cite types, uncomment line below; otherwise output
+	# contains one line per case and "shep-separate-citetypes" can
+	# be used	
+	#@citetypes = split(/, /, $1);
+	
+	$type = $1;
+
+	# For each of the types of citation for this case, generate a
+	# reference line
+
+	# Clean up
+	# Remove trailing at/by
+	$type =~ s/ by:?\s?| at:?\s?//g;
+	# Fix a few special cases so they don't have whitespace, which
+	# will be useful in output; note detection of optional leading
+	# space, in case it is part of a list; final regex to remove spaces
+	$type =~ s/\s?Cited in Concurring Opinion/ConcurringCite/;
+	$type =~ s/\s?Partly Abrogated/PartlyAbrogated/;
+	$type =~ s/\s?Abrogated in part as stated in/PartlyAbrogated/;
+	$type =~ s/\s?Criticized in Concurring Opinion/ConcurringCriticized/;
+	$type =~ s/\s?Cited in Dissenting Opinion/DissentCite/;
+	$type =~ s/\s?Validity questioned/ValidityQuestioned/;
+	$type =~ s/\s?Overruled as stated in/NotedOverruled/;
+	$type =~ s/\s?Cited in questionable precedent/CitedInQuestPrec/;
+	$type =~ s/\s?Followed by questionable precedent/FollowedByQuestPrec/;
+	$type =~ s/\s?Followed in Concurring Opinion/FollowedInConcurring/;
+	$type =~ s/\s+//;
+	
+    } elsif ( $head && $jurisd && $citing && $clean_text !~ /^\s*$/ ) {    
+	# If $citing is on and line isn't blank, we should have
+	# encountered a line of references. 
+
+	# Split apart the list of references based on their separation
+	# with commas.  Note, first should be case name, then a series
+	# of parallel citations separated by commas, then eventually
+	# some year info contained within parenthesis.  A handful of
+	# these break the rules.
+	my @citelist = split(/,/, $clean_text);
+
+	# Account for very badly formatted entries that are nothing
+	# but a citation, thus no comma, thus nothing to split.  Ugh.
+	if ( $clean_text !~ m/,/ ) {
+	    $citelist[1] = "";
+	}
+	
+	# Remove leading/trailing whitespace from case title and first reference
+	trim($citelist[0]);
+	trim($citelist[1]);
+
+	# make sure our first citation, which starts with a number, is
+	# in array position 1 -- if there's a comma in the case name
+	# ($citelist[0]), the rest of the case name will be in
+	# $citelist[1], which is bad. If that's the case, we join the
+	# pieces of the case name together and move everything over,
+	# then test again (in case of multiple commas).
+	#if ( $citelist[1] !~ /^[0-9]/ && $citelist[1] !~ /^$/ ) {
+	while ( $citelist[1] !~ /^[0-9]/ && $citelist[1] !~ /^$/ ) {
+	    my $first = shift @citelist;
+	    $citelist[0] = $first . ", " . $citelist[0];
+	    trim($citelist[1]);
+	}
+
+	# If that citation is just a LEXIS citation, sometimes they
+	# forget to put a comma before the year string, so half of the
+	# year string ends up in the citation.  Look for a single
+	# unpaired parenthesis; if present, split on that and discard
+	# the trailing part, reassign to $citelist[1]
+	if ( $citelist[1] =~ /\({1}/ ) {
+	    my @fixcite = split(/\(/, $citelist[1]);
+	    trim($fixcite[0]);
+	    $citelist[1] = $fixcite[0];
+	}
+	
+	# As long as we have a cite, grab the year string, which might
+	# also have court info, e.g. (1916) or (Cal. App. 1916).
+	# Otherwise just set $yearstr empty. Also, in edge cases where
+	# the cite is a reference as case title, then same reference
+	# as case cite, detect and set $yearstr empty. Need
+	# single-quote in regex for NY App Dep't, dash for N-M.C.C.A.
+        (my $yearstr = $clean_text) =~ s/.*(\([-A-Za-z.,'0-9\s]*[0-9]+\)).*/$1/;
+	if ( $citelist[1] =~ /^$/ ) {
+	    $yearstr = "";
+	} elsif ( $citelist[0] eq $citelist[1] ) {
+	    $yearstr = "";
+	}
+	
+	# From that, obtain just a 4-digit year, which always appears
+	# to be at the end of the year string up against the
+	# close-parenthesis.  If it didn't find one, zero out the string.
+	(my $yearnum = $yearstr) =~ s/.*([0-9]{4})\).*/$1/;
+	if ( $yearnum !~ /[0-9]{4}/ ) {
+	    $yearnum = "";
+	}
+
+	# Grab the LexisNexis Headnotes, if they exist.
+	# Otherwise just set $lnhn empty.
+	(my $lnhn = $clean_text) =~ s/.*LexisNexis Headnotes ([A-Z0-9\s,]+)$/$1/;
+	trim($lnhn);
+	$lnhn =~ s/ , /,/g;
+	if ( $lnhn !~ /^HN[0-9]+.*/ ) {
+	    $lnhn = "";
+	}
+		    
+	# Save everything in arrays, for later output
+	$jurisdictions[$count] = $jurisd;
+	$shepnum[$count] = $shepnumber;
+	$howused[$count] = $type;
+	$title[$count] = $citelist[0];
+	$ref[$count] = $citelist[1];
+	$yearstring[$count] = $yearstr;
+	$years[$count] = $yearnum;
+	$headnotes[$count] = $lnhn;
+	
+	# Reset status and increment
+	$citing = 0;
+	$count++;
+    }
+}
+
+# Print results -- delimited by $delim (set at top of program), should
+# probably use Pipe or TAB, since cases sometimes have commas
+
+# ...Header first:
+print "cited_case${delim}shepnum${delim}howused${delim}title${delim}reference${delim}jurisdiction${delim}year_string${delim}year_num${delim}headnotes\n";
+
+# ...Then the rest of the info:
+for ( my $i = 0; $i < $count; $i++ ) {
+    print "$casecite${delim}$shepnum[$i]${delim}$howused[$i]${delim}$title[$i]${delim}$ref[$i]${delim}$jurisdictions[$i]${delim}$yearstring[$i]${delim}$years[$i]${delim}$headnotes[$i]\n";
+}
+
+# Clean up
+$hs->eof;
+
+### EOF ###

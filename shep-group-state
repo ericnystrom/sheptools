@@ -1,0 +1,984 @@
+#!/usr/bin/awk -f
+#
+# shep-group-state -- evaluate jurisdiction and year_str info to make groups by state
+#
+# by Eric Nystrom, http://ericnystrom.org
+#   started: April 22, 2016
+#   version: October 03, 2016
+#   license: MIT License
+
+# "jurisdiction" is $6 in output from shep2csv
+
+# Procedure: Check jurisdiction for each entry-- if it is a
+# jurisdiction that is explicitly designated national, match and move
+# on; if it is a court name that matches a state, match it and move
+# on; if it is a multi-state but geographically-bounded court
+# (i.e. Federal District and Appeals Courts), try to figure out the
+# state from the year-string.  Sometimes the year-string does not have
+# state information in it (which it should!), mark those "UNK" for
+# unknown.  Any non-matched jurisdictions also get printed and marked
+# "UNK" but also throw an error to stderr.
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+}
+
+# This should print header (with additional "state" group in column
+# 10) if there is already a header, or continue on to evaluate the
+# line as normal if it isn't a header.
+NR = 1 {
+    if ($6 == "jurisdiction") {
+	print $0, "state"
+	next
+    }
+}
+
+# National-level jurisdictions -- explicit matching
+$6 == "U.S. SUPREME COURT" {
+    print $0, "NAT"
+    next
+}
+
+$6 == "TEMPORARY EMERGENCY COURT OF APPEALS" {
+    print $0, "NAT"
+    next
+}
+
+$6 == "FEDERAL CLAIMS COURT" {
+    print $0, "NAT"
+    next
+}
+
+$6 == "REGIONAL RAIL REORG. COURT" {
+    print $0, "NAT"
+    next
+}
+
+$6 == "U.S. TAX COURT" {
+    print $0, "NAT"
+    next
+}
+
+$6 == "CT. OF APP. FOR THE ARMED FORCES" {
+    print $0, "NAT"
+    next
+}
+
+$6 == "CT. OF CRIMINAL APPEALS" {
+    print $0, "NAT"
+    next
+}
+
+$6 == "COMPTROLLER GENERAL" {
+    print $0, "NAT"
+    next
+}
+
+$6 == "IRS AGENCY MATERIALS" {
+    print $0, "NAT"
+    next
+}
+
+$6 == "ADMINISTRATIVE AGENCY DECISIONS" {
+    print $0, "NAT"
+    next
+}
+
+$6 == "OTHER FEDERAL DECISIONS" {
+    print $0, "NAT"
+    next
+}
+
+## Multi-state jurisdictions that need further processing, check $7 (year_str) for state clues
+
+## DC Circuit Court of Appeals -- the only easy one
+$6 == "D.C. CIRCUIT - COURT OF APPEALS" {
+    print $0, "DC"
+    next
+}
+
+$6 == "D.C. CIRCUIT - U.S. DISTRICT COURT" {
+    print $0, "DC"
+    next
+}
+
+$6 == "1ST CIRCUIT - COURT OF APPEALS" {
+    if ($7 ~ /Mass\./) {
+	print $0, "MA"
+	next
+    }
+    if ($7 ~ /N\.H\./) {
+	print $0, "NH"
+	next
+    }
+    if ($7 ~ /P\.R\./) {
+	print $0, "PR"
+	next
+    } 
+    if ($7 ~ /Me./) {
+	print $0, "ME"
+	next
+    }
+    if ($7 ~ /R\.I\./) {
+	print $0, "RI"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "1ST CIRCUIT - U.S. DISTRICT COURTS" {
+    if ($7 ~ /Mass\./) {
+	print $0, "MA"
+	next
+    }
+    if ($7 ~ /N\.H\./) {
+	print $0, "NH"
+	next
+    }
+    if ($7 ~ /P\.R\./) {
+	print $0, "PR"
+	next
+    } 
+    if ($7 ~ /Me./) {
+	print $0, "ME"
+	next
+    }
+    if ($7 ~ /R\.I\./) {
+	print $0, "RI"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "2ND CIRCUIT - COURT OF APPEALS" {
+    if ($7 ~ /N\.Y\.?/) {
+	print $0, "NY"
+	next
+    }
+    if ($7 ~ /Conn\./) {
+	print $0, "CT"
+	next
+    }
+    if ($7 ~ /Vt\./) {
+	print $0, "VT"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "2ND CIRCUIT - U.S. DISTRICT COURTS" {
+    # Discovered a couple of NY missing trailing dot
+    if ($7 ~ /N\.Y\.?/) {
+	print $0, "NY"
+	next
+    }
+    if ($7 ~ /Conn\./) {
+	print $0, "CT"
+	next
+    }
+    if ($7 ~ /Vt\./) {
+	print $0, "VT"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "3RD CIRCUIT - COURT OF APPEALS" {
+    if ($7 ~ /Pa\./) {
+	print $0, "PA"
+	next
+    }
+    if ($7 ~ /N\.J\./) {
+	print $0, "NJ"
+	next
+    }
+    if ($7 ~ /Del\./) {
+	print $0, "DE"
+	next
+    }
+    if ($7 ~ /V\.I\./) {
+	print $0, "VI"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "3RD CIRCUIT - U.S. DISTRICT COURTS" {
+    if ($7 ~ /Pa\./) {
+	print $0, "PA"
+	next
+    }
+    if ($7 ~ /N\.J\./) {
+	print $0, "NJ"
+	next
+    }
+    if ($7 ~ /Del\./) {
+	print $0, "DE"
+	next
+    }
+    if ($7 ~ /V\.I\./) {
+	print $0, "VI"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "4TH CIRCUIT - COURT OF APPEALS" {
+    if ($7 ~ /Md\./) {
+	print $0, "MD"
+	next
+    }
+    # Put WVa before Va because it would match Va
+    if ($7 ~ /W\. Va\./) {
+	print $0, "WV"
+	next
+    }   
+    if ($7 ~ /Va\./) {
+	print $0, "VA"
+	next
+    }
+    if ($7 ~ /N\.C\./) {
+	print $0, "NC"
+	next
+    }
+    if ($7 ~ /S\.C\./) {
+	print $0, "SC"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "4TH CIRCUIT - U.S. DISTRICT COURTS" {
+    if ($7 ~ /Md\./) {
+	print $0, "MD"
+	next
+    }
+    # Put WVa before Va because it would match Va
+    if ($7 ~ /W\. Va\./) {
+	print $0, "WV"
+	next
+    }   
+    if ($7 ~ /Va\./) {
+	print $0, "VA"
+	next
+    }
+    if ($7 ~ /N\.C\./) {
+	print $0, "NC"
+	next
+    }
+    if ($7 ~ /S\.C\./) {
+	print $0, "SC"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "5TH CIRCUIT - COURT OF APPEALS" {
+    if ($7 ~ /Tex\./) {
+	print $0, "TX"
+	next
+    }
+    if ($7 ~ /Miss\./) {
+	print $0, "MS"
+	next
+    }
+    if ($7 ~ /La\./) {
+	print $0, "LA"
+	next
+    }
+    # For older 5th circuit cases before formation of 11th Circ. (FL,
+    # GA, AL).  Shepards puts those from former-5th Circ. District
+    # Courts into 11th Circ. District Courts heading already.
+    if ($7 ~ /Fla\./) {
+	print $0, "FL"
+	next
+    }
+    if ($7 ~ /Ga\./) {
+	print $0, "GA"
+	next
+    }
+    if ($7 ~ /Ala\./) {
+	print $0, "AL"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "5TH CIRCUIT - U.S. DISTRICT COURTS" {
+    if ($7 ~ /Tex\./) {
+	print $0, "TX"
+	next
+    }
+    if ($7 ~ /Miss\./) {
+	print $0, "MS"
+	next
+    }
+    if ($7 ~ /La\./) {
+	print $0, "LA"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "6TH CIRCUIT - COURT OF APPEALS" {
+    if ($7 ~ /Tenn\./) {
+	print $0, "TN"
+	next
+    }
+    if ($7 ~ /Ohio/) {
+	print $0, "OH"
+	next
+    }
+    if ($7 ~ /Ky\./) {
+	print $0, "KY"
+	next
+    }
+    if ($7 ~ /Mich\./) {
+	print $0, "MI"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "6TH CIRCUIT - U.S. DISTRICT COURTS" {
+    if ($7 ~ /Tenn\./) {
+	print $0, "TN"
+	next
+    }
+    if ($7 ~ /Ohio/) {
+	print $0, "OH"
+	next
+    }
+    if ($7 ~ /Ky\./) {
+	print $0, "KY"
+	next
+    }
+    if ($7 ~ /Mich\./) {
+	print $0, "MI"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "7TH CIRCUIT - COURT OF APPEALS" {
+    if ($7 ~ /Ill\./) {
+	print $0, "IL"
+	next
+    }
+    if ($7 ~ /Ind\./) {
+	print $0, "IN"
+	next
+    }
+    if ($7 ~ /Wis\./) {
+	print $0, "WI"
+	next
+    } 
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "7TH CIRCUIT - U.S. DISTRICT COURTS" {
+    if ($7 ~ /Ill\./) {
+	print $0, "IL"
+	next
+    }
+    if ($7 ~ /Ind\./) {
+	print $0, "IN"
+	next
+    }
+    if ($7 ~ /Wis\./) {
+	print $0, "WI"
+	next
+    } 
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "8TH CIRCUIT - COURT OF APPEALS" {
+    if ($7 ~ /Neb\./) {
+	print $0, "NE"
+	next
+    }
+    if ($7 ~ /Mo\./) {
+	print $0, "MO"
+	next
+    }
+    if ($7 ~ /Minn\./) {
+	print $0, "MN"
+	next
+    }
+    if ($7 ~ /Iowa/) {
+	print $0, "IA"
+	next
+    }
+    if ($7 ~ /N\.D\./) {
+	print $0, "ND"
+	next
+    }
+    if ($7 ~ /S\.D\./) {
+	print $0, "SD"
+	next
+    }
+    if ($7 ~ /Ark\./) {
+	print $0, "AR"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "8TH CIRCUIT - U.S. DISTRICT COURTS" {
+    if ($7 ~ /Neb\./) {
+	print $0, "NE"
+	next
+    }
+    if ($7 ~ /Mo\./) {
+	print $0, "MO"
+	next
+    }
+    if ($7 ~ /Minn\./) {
+	print $0, "MN"
+	next
+    }
+    if ($7 ~ /Iowa/) {
+	print $0, "IA"
+	next
+    }
+    ## For the Dakotas need to abbreviate District too, otherwise
+    ## Southern District of Iowa might match
+    if ($7 ~ /D\.N\.D\./) {
+	print $0, "ND"
+	next
+    }
+    if ($7 ~ /D\.S\.D\./) {
+	print $0, "SD"
+	next
+    }
+    if ($7 ~ /Ark\./) {
+	print $0, "AR"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "9TH CIRCUIT - COURT OF APPEALS" {
+    if ($7 ~ /Ariz\./) {
+	print $0, "AZ"
+	next
+    }
+    if ($7 ~ /Cal\./) {
+	print $0, "CA"
+	next
+    }
+    if ($7 ~ /Nev\./) {
+	print $0, "NV"
+	next
+    }
+    if ($7 ~ /Mont\./) {
+	print $0, "MT"
+	next
+    }
+    if ($7 ~ /Or\./) {
+	print $0, "OR"
+	next
+    }
+    if ($7 ~ /Wash\./) {
+	print $0, "WA"
+	next
+    }
+    if ($7 ~ /Idaho/) {
+	print $0, "ID"
+	next
+    }    
+    if ($7 ~ /Alaska/) {
+	print $0, "AK"
+	next
+    }
+    if ($7 ~ /Haw\./) {
+	print $0, "HI"
+	next
+    }
+    if ($7 ~ /Guam/) {
+	print $0, "GU"
+	next
+    }
+    if ($7 ~ /N\. Mar\. I\./) {
+	print $0, "MP"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "9TH CIRCUIT - U.S. DISTRICT COURTS" {
+    if ($7 ~ /Ariz\./) {
+	print $0, "AZ"
+	next
+    }
+    if ($7 ~ /Cal\./) {
+	print $0, "CA"
+	next
+    }
+    if ($7 ~ /Nev\./) {
+	print $0, "NV"
+	next
+    }
+    if ($7 ~ /Mont\./) {
+	print $0, "MT"
+	next
+    }
+    if ($7 ~ /Or\./) {
+	print $0, "OR"
+	next
+    }
+    if ($7 ~ /Wash\./) {
+	print $0, "WA"
+	next
+    }
+    if ($7 ~ /Idaho/) {
+	print $0, "ID"
+	next
+    }    
+    if ($7 ~ /Alaska/) {
+	print $0, "AK"
+	next
+    }
+    if ($7 ~ /Haw\./) {
+	print $0, "HI"
+	next
+    }
+    if ($7 ~ /Guam/) {
+	print $0, "GU"
+	next
+    }
+    if ($7 ~ /N\. Mar\. I\./) {
+	print $0, "MP"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "10TH CIRCUIT - COURT OF APPEALS" {
+    if ($7 ~ /N\.M\./) {
+	print $0, "NM"
+	next
+    }
+    if ($7 ~ /Colo\./) {
+	print $0, "CO"
+	next
+    }
+    if ($7 ~ /Kan\./) {
+	print $0, "KS"
+	next
+    }
+    if ($7 ~ /Utah/) {
+	print $0, "UT"
+	next
+    }
+    if ($7 ~ /Okla\./) {
+	print $0, "OK"
+	next
+    }
+    if ($7 ~ /Wyo\./) {
+	print $0, "WY"
+	next
+    }  
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "10TH CIRCUIT - U.S. DISTRICT COURTS" {
+    if ($7 ~ /N\.M\./) {
+	print $0, "NM"
+	next
+    }
+    if ($7 ~ /Colo\./) {
+	print $0, "CO"
+	next
+    }
+    if ($7 ~ /Kan\./) {
+	print $0, "KS"
+	next
+    }
+    if ($7 ~ /Utah/) {
+	print $0, "UT"
+	next
+    }
+    if ($7 ~ /Okla\./) {
+	print $0, "OK"
+	next
+    }
+    if ($7 ~ /Wyo\./) {
+	print $0, "WY"
+	next
+    }  
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "11TH CIRCUIT - COURT OF APPEALS" {
+    if ($7 ~ /Fla\./) {
+	print $0, "FL"
+	next
+    }
+    if ($7 ~ /Ga\./) {
+	print $0, "GA"
+	next
+    }
+    if ($7 ~ /Ala\./) {
+	print $0, "AL"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+$6 == "11TH CIRCUIT - U.S. DISTRICT COURTS" {
+    if ($7 ~ /Fla\./) {
+	print $0, "FL"
+	next
+    }
+    if ($7 ~ /Ga\./) {
+	print $0, "GA"
+	next
+    }
+    if ($7 ~ /Ala\./) {
+	print $0, "AL"
+	next
+    }
+    # Only here if didn't find a string above
+    print $0, "UNK"
+    next
+}
+
+## States, and below Wyoming, other similar jurisdictions (District of
+## Columbia, Guam, etc)
+$6 ~ /ALABAMA/ {
+    print $0, "AL"
+    next
+}
+
+$6 ~ /ALASKA/ {
+    print $0, "AK"
+    next
+}
+
+$6 ~ /ARIZONA/ {
+    print $0, "AZ"
+    next
+}
+
+$6 ~ /ARKANSAS/ {
+    print $0, "AR"
+    next
+}
+
+$6 ~ /CALIFORNIA/ {
+    print $0, "CA"
+    next
+}
+
+$6 ~ /COLORADO/ {
+    print $0, "CO"
+    next
+}
+
+$6 ~ /CONNECTICUT/ {
+    print $0, "CT"
+    next
+}
+
+$6 ~ /DELAWARE/ {
+    print $0, "DE"
+    next
+}
+
+$6 ~ /FLORIDA/ {
+    print $0, "FL"
+    next
+}
+
+$6 ~ /GEORGIA/ {
+    print $0, "GA"
+    next
+}
+
+$6 ~ /HAWAI/ {
+    ## Note: sometimes "HAWAI'I"
+    print $0, "HI"
+    next
+}
+
+$6 ~ /IDAHO/ {
+    print $0, "ID"
+    next
+}
+
+$6 ~ /ILLINOIS/ {
+    print $0, "IL"
+    next
+}
+
+$6 ~ /INDIANA/ {
+    print $0, "IN"
+    next
+}
+
+$6 ~ /IOWA/ {
+    print $0, "IA"
+    next
+}
+
+$6 ~ /KANSAS/ {
+    print $0, "KS"
+    next
+}
+
+$6 ~ /KENTUCKY/ {
+    print $0, "KY"
+    next
+}
+
+$6 ~ /LOUISIANA/ {
+    print $0, "LA"
+    next
+}
+
+$6 ~ /MAINE/ {
+    print $0, "ME"
+    next
+}
+
+$6 ~ /MARYLAND/ {
+    print $0, "MD"
+    next
+}
+
+$6 ~ /MASSACHUSETTS/ {
+    print $0, "MA"
+    next
+}
+
+$6 ~ /MICHIGAN/ {
+    print $0, "MI"
+    next
+}
+
+$6 ~ /MINNESOTA/ {
+    print $0, "MN"
+    next
+}
+
+$6 ~ /MISSISSIPPI/ {
+    print $0, "MS"
+    next
+}
+
+$6 ~ /MISSOURI/ {
+    print $0, "MO"
+    next
+}
+
+$6 ~ /MONTANA/ {
+    print $0, "MT"
+    next
+}
+
+$6 ~ /NEBRASKA/ {
+    print $0, "NE"
+    next
+}
+
+$6 ~ /NEVADA/ {
+    print $0, "NV"
+    next
+}
+
+$6 ~ /NEW HAMPSHIRE/ {
+    print $0, "NH"
+    next
+}
+
+$6 ~ /NEW JERSEY/ {
+    print $0, "NJ"
+    next
+}
+
+$6 ~ /NEW MEXICO/ {
+    print $0, "NM"
+    next
+}
+
+$6 ~ /NEW YORK/ {
+    print $0, "NY"
+    next
+}
+
+$6 ~ /NORTH CAROLINA/ {
+    print $0, "NC"
+    next
+}
+
+$6 ~ /NORTH DAKOTA/ {
+    print $0, "ND"
+    next
+}
+
+$6 ~ /OHIO/ {
+    print $0, "OH"
+    next
+}
+
+$6 ~ /OKLAHOMA/ {
+    print $0, "OK"
+    next
+}
+
+$6 ~ /OREGON/ {
+    print $0, "OR"
+    next
+}
+
+$6 ~ /PENNSYLVANIA/ {
+    print $0, "PA"
+    next
+}
+
+$6 ~ /RHODE ISLAND/ {
+    print $0, "RI"
+    next
+}
+
+$6 ~ /SOUTH CAROLINA/ {
+    print $0, "SC"
+    next
+}
+
+$6 ~ /SOUTH DAKOTA/ {
+    print $0, "SD"
+    next
+}
+
+$6 ~ /TENNESSEE/ {
+    print $0, "TN"
+    next
+}
+
+$6 ~ /TEXAS/ {
+    print $0, "TX"
+    next
+}
+
+$6 ~ /UTAH/ {
+    print $0, "UT"
+    next
+}
+
+$6 ~ /VERMONT/ {
+    print $0, "VT"
+    next
+}
+
+$6 ~ /VIRGINIA/ {
+    print $0, "VA"
+    next
+}
+
+$6 ~ /WASHINGTON/ {
+    print $0, "WA"
+    next
+}
+
+$6 ~ /WEST VIRGINIA/ {
+    print $0, "WV"
+    next
+}
+
+$6 ~ /WISCONSIN/ {
+    print $0, "WI"
+    next
+}
+
+$6 ~ /WYOMING/ {
+    print $0, "WY"
+    next
+}
+
+## Non-state geographical areas
+$6 ~ /DISTRICT OF COLUMBIA/ {
+    print $0, "DC"
+    next
+}
+
+$6 == "D.C. COURT OF APPEALS" {
+    print $0, "DC"
+    next
+}
+
+$6 ~ /SAMOA/ {
+    print $0, "AS"
+    next
+}
+
+$6 ~ /GUAM/ {
+    print $0, "GU"
+    next
+}
+
+$6 ~ /MARIANA/ {
+    print $0, "MP"
+    next
+}
+
+$6 ~ /PUERTO RICO/ {
+    print $0, "PR"
+    next
+}
+
+$6 ~ /VIRGIN ISLANDS/ {
+    print $0, "VI"
+    next
+}
+
+## Default for any that have not been matched
+{
+    #print "Unmatched: ", $6
+    print $0, "UNK"
+    print "UNMATCHED JURISDICTION: ", $6 > "/dev/stderr"
+}

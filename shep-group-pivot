@@ -1,0 +1,45 @@
+#!/usr/bin/awk -f
+#
+# shep-group-pivot -- a pivot-tables style aggregator to make use of
+# shep2csv output that has had a "group" added in the 10th column by
+# shep-group, pivoting on year information in $8
+#
+# by Eric Nystrom, http://ericnystrom.org
+#   started: April 21, 2016
+#   version: Sept. 28, 2016
+#   license: MIT License
+#
+# Substantially inspired by:
+#   http://www.thelinuxrain.com/articles/a-pivot-table-in-awk
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+}
+
+NR > 1 {
+    total[$8$10]++
+    years[$8]++
+    groups[$10]++
+}
+
+END {
+    n=asorti(groups, copy1)
+    printf "Group"
+    for (i=1; i<=n; i++) {
+	printf "%s%s", FS, copy1[i]
+    }
+    print ""
+
+    m=asorti(years,copy2)
+    for (j=1; j<=m; j++) {
+	printf "%s", copy2[j]
+
+	for (k=1; k<=n; k++) {
+	    printf "%s%s", FS, total[copy2[j]copy1[k]]
+	}
+	print ""
+    }
+}
+
+	
