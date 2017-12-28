@@ -1,6 +1,12 @@
 # sheptools: Legal history utilities to manipulate downloaded Shepard's citation data
 
-Last updated: October 03, 2016
+Last updated: March 27, 2017
+
+NOTE: This toolkit was designed to be used with the downloaded output of
+"Lexis-Nexis Academic," which has been completely redesigned and rebranded
+as "Nexis Uni." This will not work with the output from the new Nexis Uni
+site, and it appears that Lexis-Nexis will phase out the old site around the
+end of calendar 2017.
 
 ## Overview
 

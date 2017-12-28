@@ -4,7 +4,7 @@
 #
 # by Eric Nystrom, http://ericnystrom.org
 #   started: March 13, 2016
-#   version: October 03, 2016
+#   version: March 27, 2017
 #
 #   license: MIT License
 
@@ -138,7 +138,7 @@ while (<>) {
     
     # Now find a line indicating a type of citation, which comes
     # before the actual reference to the citing case.
-    if ( $head && $jurisd && $clean_text =~ /\s+(\w+[,\s\w]*)\s+(by:|at:)\s*$/ ) {
+    if ( $head && $jurisd && $clean_text =~ /\s+(\w+[,\s\w]*)\s+(by:|at:|in:)\s*$/ ) {
 	# If the line is one of the "citing" lines, toggle citing
 	# status to on, and capture the type(s) of cite.  I'm looking
 	# for those that start a section on the next line, not those
@@ -158,22 +158,35 @@ while (<>) {
 	# reference line
 
 	# Clean up
-	# Remove trailing at/by
-	$type =~ s/ by:?\s?| at:?\s?//g;
 	# Fix a few special cases so they don't have whitespace, which
 	# will be useful in output; note detection of optional leading
 	# space, in case it is part of a list; final regex to remove spaces
-	$type =~ s/\s?Cited in Concurring Opinion/ConcurringCite/;
-	$type =~ s/\s?Partly Abrogated/PartlyAbrogated/;
-	$type =~ s/\s?Abrogated in part as stated in/PartlyAbrogated/;
-	$type =~ s/\s?Criticized in Concurring Opinion/ConcurringCriticized/;
-	$type =~ s/\s?Cited in Dissenting Opinion/DissentCite/;
-	$type =~ s/\s?Validity questioned/ValidityQuestioned/;
-	$type =~ s/\s?Overruled as stated in/NotedOverruled/;
-	$type =~ s/\s?Cited in questionable precedent/CitedInQuestPrec/;
-	$type =~ s/\s?Followed by questionable precedent/FollowedByQuestPrec/;
-	$type =~ s/\s?Followed in Concurring Opinion/FollowedInConcurring/;
-	$type =~ s/\s+//;
+	$type =~ s/\s?Abrogated in part as stated in/AbrogatedPartly/g;
+	$type =~ s/\s?Among conflicting authorities noted/AmongConflictingAuth/g;
+	$type =~ s/\s?Cited in Concurring Opinion/CitedConcurring/g;
+	$type =~ s/\s?Cited in depublished concurring opinion/CitedDepublishedConcur/g;
+	$type =~ s/\s?Cited in Dissenting Opinion/CitedDissent/g;
+	$type =~ s/\s?Cited in questionable precedent/CitedInQuestPrec/g;
+	$type =~ s/\s?Criticized in Concurring Opinion/CriticizedInConcurring/g;
+	$type =~ s/\s?Explained in Concurring Opinion/ExplainedInConcurring/g;
+	$type =~ s/\s?Explained by questionable precedent/ExplainedByQuestPrec/g;
+	$type =~ s/\s?Followed by questionable precedent/FollowedByQuestPrec/g;
+	$type =~ s/\s?Followed in Concurring Opinion/FollowedInConcurring/g;
+	$type =~ s/\s?Interim decision/InterimDecision/g;
+	$type =~ s/\s?Overruled as stated in/OverruledAsStated/g;
+	$type =~ s/\s?Partly Abrogated/PartlyAbrogated/g;
+	$type =~ s/\s?Superseded by statute as stated in questionable precedent/SuperByStatInQuestPrec/g;
+	$type =~ s/\s?Superseded by statute as stated/SupercededByStatute/g;
+	$type =~ s/\s?Validity questioned/ValidityQuestioned/g;
+
+
+	# Remove trailing at/by (colon optional)
+	$type =~ s/ by:?\s?| at:?\s?| in:?\s?//g;
+
+	# And any extra space
+	$type =~ s/\s+//g;
+
+
 	
     } elsif ( $head && $jurisd && $citing && $clean_text !~ /^\s*$/ ) {    
 	# If $citing is on and line isn't blank, we should have
@@ -182,8 +195,9 @@ while (<>) {
 	# Split apart the list of references based on their separation
 	# with commas.  Note, first should be case name, then a series
 	# of parallel citations separated by commas, then eventually
-	# some year info contained within parenthesis.  A handful of
-	# these break the rules.
+	# some year info contained within parenthesis. NB: Year info
+	# is in the *last* pair of parentheses.  A handful of these
+	# break the rules.
 	my @citelist = split(/,/, $clean_text);
 
 	# Account for very badly formatted entries that are nothing
@@ -216,17 +230,25 @@ while (<>) {
 	# the trailing part, reassign to $citelist[1]
 	if ( $citelist[1] =~ /\({1}/ ) {
 	    my @fixcite = split(/\(/, $citelist[1]);
-	    trim($fixcite[0]);
-	    $citelist[1] = $fixcite[0];
+	    # Remove the last thing in parentheses -- should be the
+	    # year string; using this method preserves info in the
+	    # citation that is contained in parentheses. Then join the
+	    # remaining pieces back together using the open-paren we
+	    # split them on originally.
+	    pop @fixcite;
+	    $citelist[1] = join ( '(', @fixcite ); 
+	    trim($citelist[1]);
 	}
 	
-	# As long as we have a cite, grab the year string, which might
+	# Now that we have a cite, grab the year string, which might
 	# also have court info, e.g. (1916) or (Cal. App. 1916).
 	# Otherwise just set $yearstr empty. Also, in edge cases where
 	# the cite is a reference as case title, then same reference
 	# as case cite, detect and set $yearstr empty. Need
 	# single-quote in regex for NY App Dep't, dash for N-M.C.C.A.
-        (my $yearstr = $clean_text) =~ s/.*(\([-A-Za-z.,'0-9\s]*[0-9]+\)).*/$1/;
+	# Add end anchor ($) to make sure we grab the last set of
+	# parentheses.
+        (my $yearstr = $clean_text) =~ s/.*(\([-A-Za-z.,'0-9\s]*[0-9]+\)).*$/$1/;
 	if ( $citelist[1] =~ /^$/ ) {
 	    $yearstr = "";
 	} elsif ( $citelist[0] eq $citelist[1] ) {
