@@ -1,0 +1,47 @@
+#!/usr/bin/awk -f
+#
+# shep-count-ruletype-cites: For each case/headnote combo, outputs a line showing case,
+# headnote, ruletype, and count of headnote-citations.
+#
+# Given Linda Berger/ Scalia headnote analysis, on a file of output that has
+# been thru:
+#
+# shep2csv --> shep-add-scdb --> shep-separate-headnote --> shep-add-ruletype
+#
+# Then Usage:
+#
+# shep-count-ruletype-cites scalia-shepdata-hn-ruletypes.tsv
+#
+# Remember, here a single citing case can account for multiple
+# headnote-citations, if the Shepard output says that the particular
+# citing case hit multiple headnotes. Also, any citing case without
+# headnote references has been removed from this data.
+
+# cited_case = $1, headnote = $9, caseid = $10 ruletype = $11
+
+# by Eric Nystrom, http://ericnystrom.org
+#   version: January 17, 2018
+#
+#   license: MIT License
+
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+}
+
+# skip header line
+NR > 1 {
+    ruletype[$10,$9] = $11
+    cited_case[$10,$9] = $1
+    count[$10,$9]++
+    casecount[$10]++
+}
+
+END {
+    for (i in cited_case) {
+	split(i, combo, SUBSEP)
+	pctofcase = ((count[i] / casecount[combo[1]]) * 100.00)
+	print cited_case[i], combo[1], combo[2], ruletype[i], count[i], pctofcase
+    }
+}

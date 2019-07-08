@@ -1,0 +1,62 @@
+#!/usr/bin/awk -f
+#
+# shep-concat-by-ref: pull together cite-disaggregated data into case-level data
+#
+# Given input from shep2csv (May 3 2016 or later), smashes each
+# different "cite" type together into a single-line output containing
+# all cite types, for any particular cited case.  Uses
+# "cited_case,ref" to determine which things belong together.  The
+# result can then be used to count phenomena (such as headnotes) with
+# an individual case (or reference) as the fundamental unit, rather
+# than having, say, the same citing case appear in the .TSV output
+# three times because it Cited, Dissent, and PartlyAbrogated.
+#
+# using information in $1,$4, smash together subsequent $2
+#
+# Can pipe input here, or give it a file.  Remember it needs a header
+# by default. Specify "header=off" on command line if no header present.
+#
+# Started 
+# by Eric Nystrom, http://ericnystrom.org
+#   version: June 08, 2016
+#
+#   license: MIT License
+
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+    header = "on"
+}
+
+NR == 1 {
+    if (header == "on") {	
+	# First line of file, i.e. a header, column names do not
+	# change so just print it through.
+	print $0
+	next
+    }
+}
+
+{
+    # load all info into two multidimensional arrays, indexed on the
+    # case being cited ($1) and the reference of the citing case ($4),
+    # so that this can be used with output containing cites of
+    # multiple cases.
+
+    # add each citation type (Cited, Dissent, etc) to make this field
+    # a comma-separated list.  Strip leading comma later.
+    howused[$1,$4] = (howused[$1,$4] "," $2)
+
+    remainder[$1,$4] = ($3 OFS $4 OFS $5 OFS $6 OFS $7 OFS $8)
+}
+
+END {
+    # Now get the array keys by walking one of the multidimensional
+    # arrays and reassemble all output in the original order
+    for (multikey in howused) {
+	split(multikey, separate, SUBSEP)
+	# Note use of substr below to remove leading comma
+	print separate[1], substr(howused[multikey],2), remainder[multikey]
+    }
+}

@@ -1,0 +1,54 @@
+#!/usr/bin/gawk -f
+#
+# shep-de-duplicate: sometimes for very large shepards reports, which
+# need to be downloaded one slice at a time, duplicate records
+# apparently sneak in.  I'm also confident there are occasional
+# duplicate records that appear in Shepard's data, full stop. But in
+# both cases the record is the same except for $2, which is the
+# "shepnum" from that particular shepard's report.  So I have to match
+# duplicate records on everything other than $2.
+#
+# Note-- requires gawk
+#
+# By EN, January 27, 2018
+# by Eric Nystrom, http://ericnystrom.org
+#   version: January 27, 2018
+#
+#   license: MIT License
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+}
+
+{
+    ## Get $0 without $2 in it. Inspiration from
+    ## http://backreference.org/2014/10/13/range-of-fields-in-awk/
+
+    ## In gawk, split() is guaranteed to behave like field splitting,
+    ## and has the 4th parameter
+    nf = split($0, fields, FS, seps)
+
+    # add first field to eventual result
+    result = $1 FS
+
+    # loop to generate the rest of line, starting with $3
+    first = 3
+    last = NF
+    for (i = first; i < last; i++) {
+	result = result fields[i] seps[i]
+    }
+    # add the final field, no sep
+    result = result $last
+
+    # Then check for "result" (i.e. line w/o $2), if seen before, skip, otherwise print $0
+    if (result in seen) {
+	# seen this line before
+	#print "Line " NR " dup of " seen[result] " : " result
+	next
+    } else {
+	print $0
+	# Add to our seen array
+	seen[result]=NR
+    }
+}

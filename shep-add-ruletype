@@ -1,0 +1,43 @@
+#!/usr/bin/awk -f
+#
+# shep-add-ruletype: adds "ruletype" (as determined by Linda Berger from headnote analysis)
+# to a file of output that has been thru:
+#
+# shep2csv --> shep-add-scdb --> shep-separate-headnote
+# 
+# Given a ruletype file such as "linda-results-firstpass.tsv" (MUST BE TSV), with no header, and
+# columns like so: caseid, hn, user, type, input; then...
+#
+# USAGE: shep-add-ruletype linda-results-firstpass.tsv scalia-shepdata-w-scdb-by-HN.tsv
+
+# by Eric Nystrom, http://ericnystrom.org
+#   started: January 17, 2018
+#   version: July 07, 2019
+#
+#   license: MIT License
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+}
+
+# Load the linda data into array "ruletype", indexed by caseid,hn
+NR == FNR {
+    if ($4 == "ruletype") {
+	ruletype[$1,$2] = $5
+    }
+}
+
+NR != FNR {
+    # Print first line (header) with new "ruletype" column at end
+    if (FNR == "1") {
+	print $0, "ruletype"
+	next
+    }
+
+    # print line, adding ruletype from lookup array. To do this we
+    # need the caseid and hn, which are in $10 and $9, respectively,
+    # if the file has been prepared as outlined above
+    print $0, ruletype[$10,$9]
+    
+}

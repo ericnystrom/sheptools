@@ -1,0 +1,125 @@
+#!/bin/bash
+## 
+## shep-basicgraph -- script to create a basic graph of citations by
+## year, if given input from shep2csv.  Will plot multiple cases if
+## given in the same file.  Any headers ignored. Aggregates by
+## cited_case ($1) and by year_num ($8), discarding non-conforming
+## years.
+
+## by Eric Nystrom, http://ericnystrom.org
+##   version: April 05, 2017
+##
+##   license: MIT License
+
+
+## NOTE: REQUIRES ploticus.
+
+## USAGE:  shep-basicgraph DATA.tsv
+##    creates DATA.png
+
+if [[ -z "$1" ]]; then
+    echo "No data file given."
+    echo " "
+    echo "USAGE:  shep-basicgraph DATA.tsv"
+    echo "   -->  creates DATA.png"
+    exit 1
+fi
+
+## Need to give ploticus the font path if not set already, if I want
+## to use TTF fonts below
+if [[ -z $GDFONTPATH ]]; then
+    export GDFONTPATH="/usr/share/fonts/truetype/msttcorefonts/"
+fi
+
+data="$1"
+name=$(basename "$data" .tsv)
+
+awk 'BEGIN { FS = "\t" ; OFS = "\t" }
+     $8 ~ /^[0-9]{4}$/ { 
+          # Count unique cases -- only noted if I havent seen it yet
+          if ($1 in seen) {
+            seentot++
+          } else {
+            seen[$1]=$1
+            casetot[$8]++
+          } 
+          years[$8]++
+          cites[$1,$8]++ }
+     END { 
+          # Set up header
+          printf "Year"
+          for (m in seen) {
+            printf "%s%s", OFS, m
+          }
+          printf "\n"
+
+          # Now do by years
+          #n = asorti(cites, yrcites)
+          #for (j = 1; j <= n; j++) {
+          #  split(yrcites[i], z, SUBSEP)
+            # print year
+          #  printf "%s", z[1]
+            # print each case total
+          #  for (ref in seen) {
+          #    printf "%s", cites[z[1],ref]
+          #  }
+          for (i in years) {
+            printf "%s", i
+            for (j in seen) {
+               printf "%s%s", OFS, cites[j,i]
+            }
+            printf "\n"
+          }
+}' "$data" > "$data_TMP.$$"
+
+# Get number of fields in our output
+fields=$(awk -F'\t' 'NR == 1 {print NF}' "$data_TMP.$$")
+
+case $fields in
+    2)
+	## 1 y-field
+	y1name=$(cat "$data_TMP.$$" | head -n 1 | cut -f2) 
+	ploticus -prefab lines data="$data_TMP.$$" delim=tab x=1 \
+		 y=2 name="$y1name" \
+		 ylbl="Cites" -font times -png -o $name.png
+	;;
+    3)
+   	## 2 y-fields
+	y1name=$(cat "$data_TMP.$$" | head -n 1 | cut -f2)
+	y2name=$(cat "$data_TMP.$$" | head -n 1 | cut -f3)
+	ploticus -prefab lines data="$data_TMP.$$" delim=tab x=1 \
+		 y=2 name="$y1name" \
+		 y2=3 name2="$y2name" \
+		 ylbl="Cites" -font times -png -o $name.png
+	;;
+    4)
+	## 3 y-fields
+	y1name=$(cat "$data_TMP.$$" | head -n 1 | cut -f2)
+	y2name=$(cat "$data_TMP.$$" | head -n 1 | cut -f3)
+	y3name=$(cat "$data_TMP.$$" | head -n 1 | cut -f4)
+	ploticus -prefab lines data="$data_TMP.$$" delim=tab x=1 \
+		 y=2 name="$y1name" \
+		 y2=3 name2="$y2name" \
+		 y3=4 name3="$y3name" \
+		 ylbl="Cites" -font times -png -o $name.png
+	;;
+    5)
+	## 4 y-fields
+	y1name=$(cat "$data_TMP.$$" | head -n 1 | cut -f2)
+	y2name=$(cat "$data_TMP.$$" | head -n 1 | cut -f3)
+	y3name=$(cat "$data_TMP.$$" | head -n 1 | cut -f4)
+	y4name=$(cat "$data_TMP.$$" | head -n 1 | cut -f5)
+	ploticus -prefab lines data="$data_TMP.$$" delim=tab x=1 \
+		 y=2 name="$y1name" \
+		 y2=3 name2="$y2name" \
+		 y3=4 name3="$y3name" \
+		 y4=5 name4="$y4name" \
+		 ylbl="Cites" -font times -png -o $name.png
+	;;
+    *)
+	## something else
+	echo "Error: reported \"$fields\" fields in data file."
+	echo "Up to 4 cases (5 fields, including year) may be plotted at once."
+	exit 1
+	;;
+esac

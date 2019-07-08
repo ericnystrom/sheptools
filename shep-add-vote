@@ -1,0 +1,43 @@
+#!/usr/bin/awk -f
+#
+# shep-add-vote: add another column of the Supreme Court vote to
+# output that has been thru shep2csv --> shep-add-scdb
+#
+# First, create "caseid-majvotes-minvotes.tsv" by extracting the
+# relevant information from a SQLite database prepared from SCDB data,
+# like so:
+#
+# echo "select caseid, majvotes, minvotes from data;" | sqlite3 ~/datasets/scdb/scdb.db | tr '|' '     ' > ./caseid-majvotes-minvotes.tsv
+#
+#
+# Then...
+# USAGE: shep-add-vote caseid-majvotes-minvotes.tsv scalia-shepdata-with-scdb.tsv
+
+# by Eric Nystrom, http://ericnystrom.org
+#   started: January 27, 2018
+#   version: July 07, 2019
+#
+#   license: MIT License
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+}
+
+# Load the majvotes/minvotes data into array, indexed by caseid
+NR == FNR {
+    votes[$1]=($2 "-" $3)
+}
+
+NR != FNR {
+    # Print first line (header) with new "scotusvote" column at end
+    if (FNR == "1") {
+	print $0, "scotusvote"
+	next
+    }
+
+    # print line, adding scotusvote from lookup array. Caseid, to do
+    # the lookup, is $10 if prepared as usual.
+    print $0, votes[$10]
+    
+}

@@ -3,7 +3,7 @@
 # shep-separate-citetypes: separate out combined citation-types into individual records
 #
 # by Eric Nystrom, http://ericnystrom.org
-#   version: Sept. 30, 2016
+#   version: Sept. 30, 2016, January 27, 2018
 #   license: MIT License
 #
 # Given input from shep2csv (output is 9 fields) OR 10-field output
@@ -35,9 +35,17 @@ NR == 1 {
     split($3, howused, ",")
     for (i in howused) {
 	if (NF == 9) {
-		print $1, $2, howused[i], $4, $5, $6, $7, $8, $9
+	    print $1, $2, howused[i], $4, $5, $6, $7, $8, $9
 	} else if (NF == 10) {
-		print $1, $2, howused[i], $4, $5, $6, $7, $8, $9, $10	
-	}	
+	    print $1, $2, howused[i], $4, $5, $6, $7, $8, $9, $10	
+	} else if (NF == 11) {
+	    print $1, $2, howused[i], $4, $5, $6, $7, $8, $9, $10, $11
+	} else if (NF == 12) {
+	    print $1, $2, howused[i], $4, $5, $6, $7, $8, $9, $10, $11, $12
+	} else if (NF == 13) {
+	    print $1, $2, howused[i], $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+	} else if (NF == 14) {
+	    print $1, $2, howused[i], $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+	}
     }
 }

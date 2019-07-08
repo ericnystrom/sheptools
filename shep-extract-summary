@@ -1,0 +1,99 @@
+#!/usr/bin/perl
+# 
+# shep-extract-summary: Extract Case Summary from LexisNexis Academic
+# HTML-exported case text.  (note, will not work with next generation "Nexis UNI"
+# export)
+#
+# Usage: shep-extract-summary CASENAME FILE.HTML
+#
+# Where CASENAME is the word to tag these headnotes with, and
+# FILE.HTML is the html-format exported case text.
+#
+# by Eric Nystrom, http://ericnystrom.org
+#   started: October 11, 2017
+#   version: October 11, 2017
+#   license: MIT License
+
+use strict;
+use warnings;
+use HTML::Strip;
+use Text::Unidecode;
+
+my $hs = HTML::Strip->new();
+
+# Read in .html file from STDIN or file on command line, processes
+# file one line at a time.
+
+# Delimiter for output (I suggest pipe or TAB, many cases have commas)
+my $delim = "\t";
+
+# # Set up other variables
+my $head = 0;
+my @summary;
+
+# If I don't have two arguments, print a brief help message
+die "Usage: shep-extract-summary CASENAME file.html\n" if @ARGV < 2;
+
+# Grab case name from command line and shift, so file can be processed
+my $case = shift;
+
+# Process HTML export file
+LINE: while (<>) {
+    # Grab the line and remove HTML tags, strip Unicode weirdness
+    chomp;
+    my $raw_html = $_;
+    my $clean_text = $hs->parse( $raw_html );
+    $clean_text =~ s/([^[:ascii:]]+)/unidecode($1)/ge;
+
+    # Process first few lines of file to get general information about
+    # case?
+
+    # I'm after the "case summary" which consists of the procedural
+    # posture, the overview, and the outcome, and ends before the
+    # "core terms".  There might be other sections, depending on the
+    # case. It could be desirable to extract the all-caps section
+    # heading (e.g. OVERVIEW:) which appears at the beginning of the
+    # line.
+
+    if ( !$head && $clean_text =~ /^\s*CASE SUMMARY/ ) {
+	# Headnotes found after this, set $head
+	$head = 1;
+	next LINE;
+    }
+
+    # Once we hit the CORE TERMS: section, we are done, exit the file reading
+    # loop. 
+    last LINE if ( $head && $clean_text =~ /CORE TERMS:/ );
+
+    # So anything left should be the summary info we want. Likely
+    # multiple lines worth, hence pushing it onto a list. Just clean
+    # it lightly.
+    if ( $head && $clean_text !~ /^\s*$/ ) {
+	my $x = $hs->parse( $clean_text );
+	# Any other cleaning needed -- for example to remove any tabs
+	$x =~ s/\t/ /g;
+	push (@summary, $x);
+    }
+}
+
+
+# Print results -- delimited by $delim (set at top of program), should
+# probably use pipe or TAB, since note contents often have commas
+
+foreach my $i (@summary) {
+
+    # # smash all elements of the summary list together, separated by two \n
+    # my $allinfo = join '\n\n', @summary
+
+    # Print each part of summary in TSV/CSV form: caseid, text
+    print "$case${delim}$i\n";
+
+    # Print as statements, with identifier trailing in brackets, blank
+    # line between entries
+    #print "$2 [$case,$1]\n\n"
+}
+
+# Clean up
+$hs->eof;
+
+### EOF ###

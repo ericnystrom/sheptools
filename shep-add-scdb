@@ -1,0 +1,34 @@
+#!/usr/bin/awk -f
+#
+# shep-add-scdb: add SCDB case numbers to a .TSV output from shep2csv.
+#
+# This assumes the SCDB numbers are embedded in the filenames
+# formatted in the style of the Berger and other projects,
+# i.e. 1990-123_shep.html, because each of those shepard's reports in
+# HTML was processed with shep2csv into a correspondingly-named TSV. Designed
+# to process a bunch of these on the command line at once.
+#
+# Usage:
+#
+# shep-add-scdb *.tsv > ../scalia-shepdata-with-scdb.tsv
+#
+# by Eric Nystrom, http://ericnystrom.org
+#   version: January 17, 2018
+#
+#   license: MIT License
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+}
+
+# on the very first one, allow the header to pass thru with the
+# addition of SCDB's caseid
+NR == 1 {
+    print $0, "caseid"    
+}
+
+FNR > 1 {
+    split(FILENAME, scdb, "_")
+    print $0, scdb[1]
+}

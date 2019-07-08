@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # 
-# Extract LexisNexis Headnotes from HTML-exported case text (from Lexis-Nexis).
+# shep-extract-headnotes: Extract LexisNexis Headnotes from HTML-exported case text (from Lexis-Nexis).
 #
 # Usage: shep-extract-headnotes CASENAME FILE.HTML
 #
@@ -9,7 +9,7 @@
 #
 # by Eric Nystrom, http://ericnystrom.org
 #   started: May 14, 2016
-#   version: May 14, 2016
+#   version: August 28, 2017
 #   license: MIT License
 
 use strict;
@@ -59,9 +59,14 @@ LINE: while (<>) {
 	next LINE;
     }
 
-    # Once we hit the Summary section, we are done processing the
-    # headnotes, so bomb out of the file reading loop
+    # Once we hit the Summary or Decision or SYLLABUS section, we are
+    # done processing the headnotes, so bomb out of the file reading
+    # loop. Note, if you are getting duplicate headnotes in output,
+    # the "stop sign", so to speak, was probably missed; check it out
+    # and add to the list here if needed.
+    last LINE if ( $head && $clean_text =~ /DECISION:/ );
     last LINE if ( $head && $clean_text =~ /SUMMARY:/ );
+    last LINE if ( $head && $clean_text =~ /SYLLABUS/ );
 
     # Process our headnotes
     if ( $head && $clean_text !~ /^\s*$/ ) {
@@ -79,8 +84,6 @@ LINE: while (<>) {
     }
 }
 
-
-
 # Print results -- delimited by $delim (set at top of program), should
 # probably use pipe or TAB, since note contents often have commas
 
@@ -89,12 +92,12 @@ foreach my $j (@hn) {
     # $1 and $2, respectively, and print along with case name
     $j =~ m/\[(HN[0-9]{1,3})\]\s+(.*)/;
 
-    # Print in TSV/CSV form
-    #print "$case${delim}$1${delim}$2\n";
+    # Print in TSV/CSV form: caseid, hn, text
+    print "$case${delim}$1${delim}$2\n";
 
     # Print as statements, with identifier trailing in brackets, blank
     # line between entries
-    print "$2 [$case,$1]\n\n"
+    #print "$2 [$case,$1]\n\n"
 }
 
 # Clean up

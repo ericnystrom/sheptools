@@ -1,0 +1,55 @@
+#!/usr/bin/awk -f
+#
+# shep-hn-pct: Take results of shep-hn-pivot, and create a table
+# normalizing the output as a percentage of each year's citations
+# (i.e. if HN2 had 4 citations in a year when the total citations were
+# 8, then HN4 had 50%
+#
+# Input is from shep-hn-pivot, with the first line a header, the first
+# column is the year, and the last column is ALL (total for year);
+# separated by tabs.
+
+# by Eric Nystrom, http://ericnystrom.org
+#   version: June 21, 2016
+#
+#   license: MIT License
+
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+}
+
+# Print the whole header except the last column, which is ALL
+NR == 1 {
+    i = 1
+    while (i < NF) {
+	printf "%s%s", $i, OFS
+	i++
+    }
+    # finish the line with a newline
+    printf "\n"
+}
+
+# Process data lines
+NR > 1 {
+    # Print the year
+    printf "%s%s", $1, OFS
+
+    # calculate each field's value and print
+    i = 2
+    while (i < NF) {
+	# if it is blank, put a zero instead
+	if ($i == "") {
+	    printf "0%s", OFS
+	} else {
+	    printf "%3.2f%s", (($i / $NF) * 100.0), OFS
+	}
+    	i++
+    }
+    # finish the line with a newline
+    printf "\n"
+}
+
+
+    

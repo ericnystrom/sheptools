@@ -1,0 +1,56 @@
+#!/usr/bin/awk -f
+#
+# shep-howused-pivot -- a pivot-tables style aggregator to make use of
+# shep2csv --> ERRATA --> shep-separate-citetypes output that has a
+# "howused" column in $3 column, year_num in $8. Assumes a header
+# line in input, which is ignored. Also produces a year total (ALL)
+# column by summing the input.
+#
+# by Eric Nystrom, http://ericnystrom.org
+#   started: June 08, 2016, Sept. 30, 2016 (shep-hn-pivot)
+#   version: March 14, 2017
+#   license: MIT License
+#
+# Based on shep-group-pivot, which in turn was substantially inspired
+# by: http://www.thelinuxrain.com/articles/a-pivot-table-in-awk
+
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+}
+
+# Skips header line by starting aggregation on the second line of
+# input.
+NR > 1 {
+    total[$8$3]++
+    years[$8]++
+    howused[$3]++
+}
+
+END {
+    # Print header
+    n=asorti(howused, copy1)
+    printf "CiteType"
+    for (i=1; i<=n; i++) {
+	printf "%s%s", FS, copy1[i]
+    }
+
+    # Add "ALL" column at end of header line
+    printf "%s%s", FS, "ALL"
+    print ""
+
+    # Print data, including an "ALL" column
+    m=asorti(years,copy2)
+    for (j=1; j<=m; j++) {
+	printf "%s", copy2[j]
+
+	for (k=1; k<=n; k++) {
+	    printf "%s%s", FS, total[copy2[j]copy1[k]]
+	}
+	# The total for that year (ALL)
+	printf "%s%s", FS, years[copy2[j]]
+	print ""
+    }
+}
+
+	
